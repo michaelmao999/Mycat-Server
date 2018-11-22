@@ -1016,17 +1016,17 @@ public class RouterUtil {
 			throws SQLNonTransientException {
 
 		List<String> tables = ctx.getTables();
-
-		if(schema.isNoSharding()||(tables.size() >= 1&&isNoSharding(schema,tables.get(0)))) {
+		int tableLen = tables.size();
+		if(schema.isNoSharding()||(tableLen >= 1&&isNoSharding(schema,tables.get(0)))) {
 			return routeToSingleNode(rrs, schema.getDataNode(), ctx.getSql());
 		}
 
 		//只有一个表的
-		if(tables.size() == 1) {
+		if(tableLen == 1) {
 			return RouterUtil.tryRouteForOneTable(schema, ctx, routeUnit, tables.get(0), rrs, isSelect, cachePool);
 		}
 
-		Set<String> retNodesSet = new HashSet<String>();
+
 		//每个表对应的路由映射
 		Map<String,Set<String>> tablesRouteMap = new HashMap<String,Set<String>>();
 
@@ -1069,7 +1069,7 @@ public class RouterUtil {
 				tablesRouteMap.get(tableName).addAll(tableConfig.getDataNodes());
 			}
 		}
-
+		Set<String> retNodesSet = new HashSet<String>();
 		boolean isFirstAdd = true;
 		for(Map.Entry<String, Set<String>> entry : tablesRouteMap.entrySet()) {
 			if(entry.getValue() == null || entry.getValue().size() == 0) {
@@ -1160,15 +1160,16 @@ public class RouterUtil {
 				return routeToMultiNode(rrs.isCacheAble(), rrs, tc.getDataNodes(), ctx.getSql());
 			} else {
 				//每个表对应的路由映射
-				Map<String,Set<String>> tablesRouteMap = new HashMap<String,Set<String>>();
+				Map<String,Set<String>> tablesRouteMap = null;
 				if(routeUnit.getTablesAndConditions() != null && routeUnit.getTablesAndConditions().size() > 0) {
+					tablesRouteMap = new HashMap<String,Set<String>>();
 					RouterUtil.findRouteWithcConditionsForTables(schema, rrs, routeUnit.getTablesAndConditions(), tablesRouteMap, ctx.getSql(), cachePool, isSelect);
 					if(rrs.isFinishedRoute()) {
 						return rrs;
 					}
 				}
 
-				if(tablesRouteMap.get(tableName) == null) {
+				if(tablesRouteMap == null || tablesRouteMap.get(tableName) == null) {
 					return routeToMultiNode(rrs.isCacheAble(), rrs, tc.getDataNodes(), ctx.getSql());
 				} else {
 					return routeToMultiNode(rrs.isCacheAble(), rrs, tablesRouteMap.get(tableName), ctx.getSql());

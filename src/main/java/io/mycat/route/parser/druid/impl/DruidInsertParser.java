@@ -170,13 +170,15 @@ public class DruidInsertParser extends DefaultDruidParser {
 	private void parserSingleInsert(SchemaConfig schema, RouteResultset rrs, String partitionColumn,
 			String tableName, MySqlInsertStatement insertStmt) throws SQLNonTransientException {
 		boolean isFound = false;
-		for(int i = 0; i < insertStmt.getColumns().size(); i++) {
-			if(partitionColumn.equalsIgnoreCase(StringUtil.removeBackquote(insertStmt.getColumns().get(i).toString()))) {//找到分片字段
+		List<SQLExpr> columns = insertStmt.getColumns();
+		int columnLen = columns.size();
+		for(int i = 0; i < columnLen; i++) {
+			if(partitionColumn.equalsIgnoreCase(StringUtil.removeBackquote(columns.get(i).toString()))) {//找到分片字段
 				isFound = true;
-				String column = StringUtil.removeBackquote(insertStmt.getColumns().get(i).toString());
-
-				String shardingValue = getShardingValue(insertStmt.getValues().getValues().get(i));
-				insertStmt.getValues().getValues().set(i,new SQLCharExpr(shardingValue));
+				String column = StringUtil.removeBackquote(columns.get(i).toString());
+				List<SQLExpr> values = insertStmt.getValues().getValues();
+				String shardingValue = getShardingValue(values.get(i));
+				values.set(i,new SQLCharExpr(shardingValue));
 				ctx.setSql(insertStmt.toString());
 
 				RouteCalculateUnit routeCalculateUnit = new RouteCalculateUnit();

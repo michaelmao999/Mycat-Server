@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.Set;
 
 /**
@@ -27,8 +28,28 @@ import java.util.Set;
 public class DruidParserFactory
 {
 
+    private static Map<Class<?>, IDruidParserCreator> mysqlDefaultParserCreators = new HashMap<>();
+    static {
+        //通过hash一次命中所需的类型处理
+        mysqlDefaultParserCreators.put(SQLSelectStatement.class, new SQLSelectStatementCreator());
+        mysqlDefaultParserCreators.put(MySqlInsertStatement.class, new MySqlInsertStatementCreator());
+        mysqlDefaultParserCreators.put(MySqlUpdateStatement.class, new MySqlUpdateStatementCreator());
+        mysqlDefaultParserCreators.put(MySqlDeleteStatement.class, new MySqlDeleteStatementCreator());
+        mysqlDefaultParserCreators.put(MySqlCreateTableStatement.class, new MySqlCreateTableStatementCreator());
+        mysqlDefaultParserCreators.put(SQLAlterTableStatement.class, new SQLAlterTableStatementCreator());
+        mysqlDefaultParserCreators.put(MySqlLockTableStatement.class, new MySqlLockTableStatementCreator());
+
+    }
+
     public static DruidParser create(SchemaConfig schema, SQLStatement statement, SchemaStatVisitor visitor)
     {
+        if (statement != null) {
+            //通过hash表一次查找
+            IDruidParserCreator creator = mysqlDefaultParserCreators.get(statement.getClass());
+            if (creator != null) {
+                return creator.newInstance(schema, statement, visitor);
+            }
+        }
         DruidParser parser = null;
         if (statement instanceof SQLSelectStatement)
         {
@@ -45,15 +66,16 @@ public class DruidParserFactory
         } else if (statement instanceof MySqlInsertStatement)
         {
             parser = new DruidInsertParser();
+        } else if (statement instanceof MySqlUpdateStatement)
+        {
+            parser = new DruidUpdateParser();
+
         } else if (statement instanceof MySqlDeleteStatement)
         {
             parser = new DruidDeleteParser();
         } else if (statement instanceof MySqlCreateTableStatement)
         {
             parser = new DruidCreateTableParser();
-        } else if (statement instanceof MySqlUpdateStatement)
-        {
-            parser = new DruidUpdateParser();
         } else if (statement instanceof SQLAlterTableStatement)
         {
             parser = new DruidAlterTableParser();
@@ -153,5 +175,64 @@ public class DruidParserFactory
         return tables;
     }
 
+    private static interface IDruidParserCreator {
+        DruidParser newInstance(SchemaConfig schema, SQLStatement statement, SchemaStatVisitor visitor);
+    };
 
+    private static class SQLSelectStatementCreator implements IDruidParserCreator {
+        @Override
+        public DruidParser newInstance(SchemaConfig schema, SQLStatement statement, SchemaStatVisitor visitor) {
+            DruidParser parser = null;
+            if(schema.isNeedSupportMultiDBType()){
+                parser = getDruidParserForMultiDB(schema, statement, visitor);
+            }
+
+            if (parser == null) {
+                parser = new DruidSelectParser();
+            }
+            return parser;
+        }
+    };
+    //
+    private static class MySqlInsertStatementCreator implements IDruidParserCreator {
+        @Override
+        public DruidParser newInstance(SchemaConfig schema, SQLStatement statement, SchemaStatVisitor visitor) {
+            return new DruidInsertParser();
+        }
+    };
+
+    private static class MySqlUpdateStatementCreator implements IDruidParserCreator {
+        @Override
+        public DruidParser newInstance(SchemaConfig schema, SQLStatement statement, SchemaStatVisitor visitor) {
+            return new DruidUpdateParser();
+        }
+    };
+
+    private static class MySqlDeleteStatementCreator implements IDruidParserCreator {
+        @Override
+        public DruidParser newInstance(SchemaConfig schema, SQLStatement statement, SchemaStatVisitor visitor) {
+            return new DruidDeleteParser();
+        }
+    };
+
+    private static class MySqlCreateTableStatementCreator implements IDruidParserCreator {
+        @Override
+        public DruidParser newInstance(SchemaConfig schema, SQLStatement statement, SchemaStatVisitor visitor) {
+            return new DruidCreateTableParser();
+        }
+    };
+
+    private static class SQLAlterTableStatementCreator implements IDruidParserCreator {
+        @Override
+        public DruidParser newInstance(SchemaConfig schema, SQLStatement statement, SchemaStatVisitor visitor) {
+            return new DruidAlterTableParser();
+        }
+    };
+
+    private static class MySqlLockTableStatementCreator implements IDruidParserCreator {
+        @Override
+        public DruidParser newInstance(SchemaConfig schema, SQLStatement statement, SchemaStatVisitor visitor) {
+            return new DruidLockTableParser();
+        }
+    };
 }

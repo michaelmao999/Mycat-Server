@@ -124,12 +124,13 @@ public class DefaultDruidParser implements DruidParser {
 			}
 		}
 
-		List<List<Condition>> mergedConditionList = new ArrayList<List<Condition>>();
+		List<List<Condition>> mergedConditionList;
 		if(visitor.hasOrCondition()) {//包含or语句
 			//TODO
 			//根据or拆分
 			mergedConditionList = visitor.splitConditions();
 		} else {//不包含OR语句
+			mergedConditionList = new ArrayList<List<Condition>>();
 			mergedConditionList.add(visitor.getConditions());
 		}
 		
@@ -212,7 +213,9 @@ public class DefaultDruidParser implements DruidParser {
 	}
 	
 	private boolean checkConditionValues(List<Object> values) {
-		for(Object value : values) {
+		int len = values.size();
+		for (int index = 0; index < len; index++) {
+			Object value = values.get(index);
 			if(value != null && !value.toString().equals("")) {
 				return true;
 			}

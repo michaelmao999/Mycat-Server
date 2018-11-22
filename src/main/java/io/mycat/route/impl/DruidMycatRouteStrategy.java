@@ -1,36 +1,10 @@
 package io.mycat.route.impl;
 
-import java.sql.SQLNonTransientException;
-import java.sql.SQLSyntaxErrorException;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.SortedSet;
-import java.util.TreeSet;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.alibaba.druid.sql.SQLUtils;
 import com.alibaba.druid.sql.ast.SQLObject;
 import com.alibaba.druid.sql.ast.SQLStatement;
-import com.alibaba.druid.sql.ast.expr.SQLAllExpr;
-import com.alibaba.druid.sql.ast.expr.SQLBinaryOpExpr;
-import com.alibaba.druid.sql.ast.expr.SQLExistsExpr;
-import com.alibaba.druid.sql.ast.expr.SQLIdentifierExpr;
-import com.alibaba.druid.sql.ast.expr.SQLInSubQueryExpr;
-import com.alibaba.druid.sql.ast.expr.SQLQueryExpr;
-import com.alibaba.druid.sql.ast.statement.SQLDeleteStatement;
-import com.alibaba.druid.sql.ast.statement.SQLExprTableSource;
-import com.alibaba.druid.sql.ast.statement.SQLInsertStatement;
-import com.alibaba.druid.sql.ast.statement.SQLSelect;
-import com.alibaba.druid.sql.ast.statement.SQLSelectQuery;
-import com.alibaba.druid.sql.ast.statement.SQLSelectStatement;
-import com.alibaba.druid.sql.ast.statement.SQLTableSource;
-import com.alibaba.druid.sql.ast.statement.SQLUpdateStatement;
+import com.alibaba.druid.sql.ast.expr.*;
+import com.alibaba.druid.sql.ast.statement.*;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlInsertStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlReplaceStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSelectQueryBlock;
@@ -38,7 +12,6 @@ import com.alibaba.druid.sql.dialect.mysql.parser.MySqlStatementParser;
 import com.alibaba.druid.sql.parser.SQLStatementParser;
 import com.alibaba.druid.stat.TableStat.Relationship;
 import com.google.common.base.Strings;
-
 import io.mycat.MycatServer;
 import io.mycat.backend.mysql.nio.handler.MiddlerQueryResultHandler;
 import io.mycat.backend.mysql.nio.handler.MiddlerResultHandler;
@@ -51,23 +24,19 @@ import io.mycat.config.model.rule.RuleConfig;
 import io.mycat.route.RouteResultset;
 import io.mycat.route.RouteResultsetNode;
 import io.mycat.route.function.SlotFunction;
-import io.mycat.route.impl.middlerResultStrategy.BinaryOpResultHandler;
-import io.mycat.route.impl.middlerResultStrategy.InSubQueryResultHandler;
-import io.mycat.route.impl.middlerResultStrategy.RouteMiddlerReaultHandler;
-import io.mycat.route.impl.middlerResultStrategy.SQLAllResultHandler;
-import io.mycat.route.impl.middlerResultStrategy.SQLExistsResultHandler;
-import io.mycat.route.impl.middlerResultStrategy.SQLQueryResultHandler;
-import io.mycat.route.parser.druid.DruidParser;
-import io.mycat.route.parser.druid.DruidParserFactory;
-import io.mycat.route.parser.druid.DruidShardingParseInfo;
-import io.mycat.route.parser.druid.MycatSchemaStatVisitor;
-import io.mycat.route.parser.druid.MycatStatementParser;
-import io.mycat.route.parser.druid.RouteCalculateUnit;
+import io.mycat.route.impl.middlerResultStrategy.*;
+import io.mycat.route.parser.druid.*;
 import io.mycat.route.parser.util.ParseUtil;
 import io.mycat.route.util.RouterUtil;
 import io.mycat.server.NonBlockingSession;
 import io.mycat.server.ServerConnection;
 import io.mycat.server.parser.ServerParse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.sql.SQLNonTransientException;
+import java.sql.SQLSyntaxErrorException;
+import java.util.*;
 
 public class DruidMycatRouteStrategy extends AbstractRouteStrategy {
 	
@@ -136,16 +105,21 @@ public class DruidMycatRouteStrategy extends AbstractRouteStrategy {
 		 */
 		
 		//add huangyiming 分片规则不一样的且表中带查询条件的则走Catlet
-		List<String> tables = ctx.getTables();
+
 		SchemaConfig schemaConf = MycatServer.getInstance().getConfig().getSchemas().get(schema.getName());
 		int index = 0;
 		RuleConfig firstRule = null;
 		boolean directRoute = true;
-		Set<String> firstDataNodes = new HashSet<String>();
+
 		Map<String, TableConfig> tconfigs = schemaConf==null?null:schemaConf.getTables();
 		
 		Map<String,RuleConfig> rulemap = new HashMap<>();
-		if(tconfigs!=null){	
+		if(tconfigs!=null){
+			List<String> tables = ctx.getTables();
+			Set<String> firstDataNodes = null;
+			if (!tables.isEmpty()) {
+				firstDataNodes = new HashSet<String>();
+			}
 	        for(String tableName : tables){
 	            TableConfig tc =  tconfigs.get(tableName);
 	            if(tc == null){
@@ -177,7 +151,8 @@ public class DruidMycatRouteStrategy extends AbstractRouteStrategy {
 	                    dataNodes.addAll(tc.getDataNodes());
 	                    rulemap.put(tc.getName(), ruleCfg);
 	                    //如果匹配规则不相同或者分片的datanode不相同则需要走子查询处理
-	                    if(firstRule!=null&&((ruleCfg !=null && !ruleCfg.getRuleAlgorithm().equals(firstRule.getRuleAlgorithm()) )||( !dataNodes.equals(firstDataNodes)))){
+	                    if(firstRule!=null &&
+								((ruleCfg !=null && !ruleCfg.getRuleAlgorithm().equals(firstRule.getRuleAlgorithm()) )||( !dataNodes.equals(firstDataNodes)))){
 	                      directRoute = false;
 	                      break;
 	                    }
@@ -233,7 +208,7 @@ public class DruidMycatRouteStrategy extends AbstractRouteStrategy {
 	/**
 	 * 子查询中存在关联查询的情况下,检查关联字段是否是分片字段
 	 * @param rulemap
-	 * @param ships
+	 * @param visitor
 	 * @return
 	 */
 	private boolean checkRuleField(Map<String,RuleConfig> rulemap,MycatSchemaStatVisitor visitor){
@@ -405,33 +380,49 @@ public class DruidMycatRouteStrategy extends AbstractRouteStrategy {
 			RouteCalculateUnit routeCalculateUnit = new RouteCalculateUnit();
 			druidParser.getCtx().addRouteCalculateUnit(routeCalculateUnit);
 		}
-		
-		SortedSet<RouteResultsetNode> nodeSet = new TreeSet<RouteResultsetNode>();
+
+		RouteResultsetNode[] nodes = null;
+		SortedSet<RouteResultsetNode> nodeSet = null;
 		boolean isAllGlobalTable = RouterUtil.isAllGlobalTable(ctx, schema);
-		for(RouteCalculateUnit unit: druidParser.getCtx().getRouteCalculateUnits()) {
-			RouteResultset rrsTmp = RouterUtil.tryRouteForTables(schema, druidParser.getCtx(), unit, rrs, isSelect(statement), cachePool);
+		List<RouteCalculateUnit> units = druidParser.getCtx().getRouteCalculateUnits();
+		int unitLen = units.size();
+		for (int index = 0; index < unitLen; index++) {
+			RouteResultset rrsTmp = RouterUtil.tryRouteForTables(schema, druidParser.getCtx(), units.get(index), rrs, isSelect(statement), cachePool);
 			if(rrsTmp != null&&rrsTmp.getNodes()!=null) {
-				for(RouteResultsetNode node :rrsTmp.getNodes()) {
-					nodeSet.add(node);
+				if (unitLen == 1) {
+					nodes = rrsTmp.getNodes();
+				} else {
+					if (index == 0) {
+						nodeSet = new TreeSet<RouteResultsetNode>();
+					}
+					for(RouteResultsetNode node :rrsTmp.getNodes()) {
+						nodeSet.add(node);
+					}
 				}
 			}
 			if(isAllGlobalTable) {//都是全局表时只计算一遍路由
 				break;
 			}
 		}
-		
-		RouteResultsetNode[] nodes = new RouteResultsetNode[nodeSet.size()];
-		int i = 0;
-		for (RouteResultsetNode aNodeSet : nodeSet) {
-			nodes[i] = aNodeSet;
-			  if(statement instanceof MySqlInsertStatement &&ctx.getTables().size()==1&&schema.getTables().containsKey(ctx.getTables().get(0))) {
-				  RuleConfig rule = schema.getTables().get(ctx.getTables().get(0)).getRule();
-				  if(rule!=null&&  rule.getRuleAlgorithm() instanceof SlotFunction){
-					 aNodeSet.setStatement(ParseUtil.changeInsertAddSlot(aNodeSet.getStatement(),aNodeSet.getSlot()));
-				  }
-			  }
-			i++;
-		}		
+
+		if (unitLen > 1) {
+			nodes = new RouteResultsetNode[nodeSet.size()];
+			int index = 0;
+			for (RouteResultsetNode aNodeSet : nodeSet) {
+				nodes[index] = aNodeSet;
+				index++;
+			}
+		}
+
+		for (RouteResultsetNode aNodeSet : nodes) {
+			//nodes[i] = aNodeSet;
+			if(statement instanceof MySqlInsertStatement &&ctx.getTables().size()==1&&schema.getTables().containsKey(ctx.getTables().get(0))) {
+				RuleConfig rule = schema.getTables().get(ctx.getTables().get(0)).getRule();
+				if(rule!=null&&  rule.getRuleAlgorithm() instanceof SlotFunction){
+					aNodeSet.setStatement(ParseUtil.changeInsertAddSlot(aNodeSet.getStatement(),aNodeSet.getSlot()));
+				}
+			}
+		}
 		rrs.setNodes(nodes);		
 		
 		//分表

@@ -470,22 +470,35 @@ public class DruidSelectParser extends DefaultDruidParser {
 			return;
 		}
 //		RouterUtil.tryRouteForTables(schema, ctx, rrs, true, cachePool);
-		SortedSet<RouteResultsetNode> nodeSet = new TreeSet<RouteResultsetNode>();
+		RouteResultsetNode[] nodes = null;
+		SortedSet<RouteResultsetNode> nodeSet = null;
 		boolean isAllGlobalTable = RouterUtil.isAllGlobalTable(ctx, schema);
-		for (RouteCalculateUnit unit : ctx.getRouteCalculateUnits()) {
-			RouteResultset rrsTmp = RouterUtil.tryRouteForTables(schema, ctx, unit, rrs, true, cachePool);
+		List<RouteCalculateUnit> units = ctx.getRouteCalculateUnits();
+		int len = units.size();
+		for (int index = 0; index < len; index++) {
+			RouteResultset rrsTmp = RouterUtil.tryRouteForTables(schema, ctx, units.get(index), rrs, true, cachePool);
 			if (rrsTmp != null&&rrsTmp.getNodes()!=null) {
-				for (RouteResultsetNode node : rrsTmp.getNodes()) {
-					nodeSet.add(node);
+				//大多数情况可能只有一个路由集合，不需要创建额外的对象
+				if (len == 1) {
+					nodes = rrsTmp.getNodes();
+				} else {
+					//仅仅当有多个路由集合时，才创建TreeSet过滤重复的数据
+					if (index == 0) {
+						nodeSet = new TreeSet<RouteResultsetNode>();
+					}
+					for (RouteResultsetNode node : rrsTmp.getNodes()) {
+						nodeSet.add(node);
+					}
 				}
 			}
+
 			if(isAllGlobalTable) {//都是全局表时只计算一遍路由
 				break;
 			}
 		}
-		
-		if(nodeSet.size() == 0) {
-
+		//两种情况下的空节点处理
+		if((len == 1 && (nodes == null || nodes.length == 0))
+				|| (len > 1 && nodeSet.size() == 0)) {
             Collection<String> stringCollection= ctx.getTableAliasMap().values() ;
             for (String table : stringCollection)
             {
@@ -500,15 +513,17 @@ public class DruidSelectParser extends DefaultDruidParser {
 			LOGGER.warn(msg);
 			throw new SQLNonTransientException(msg);
 		}
-		
-		RouteResultsetNode[] nodes = new RouteResultsetNode[nodeSet.size()];
-		int i = 0;
-		for (Iterator<RouteResultsetNode> iterator = nodeSet.iterator(); iterator.hasNext();) {
-			nodes[i] = (RouteResultsetNode) iterator.next();
-			i++;
-			
+		//仅仅当路由集合大于1时，才需要创建数组
+		if (len > 1) {
+			nodes = new RouteResultsetNode[nodeSet.size()];
+			int i = 0;
+			for (Iterator<RouteResultsetNode> iterator = nodeSet.iterator(); iterator.hasNext();) {
+				nodes[i] = (RouteResultsetNode) iterator.next();
+				i++;
+
+			}
 		}
-		
+
 		rrs.setNodes(nodes);
 		rrs.setFinishedRoute(true);
 	}
@@ -609,11 +624,11 @@ public class DruidSelectParser extends DefaultDruidParser {
 				return false;//优先从配置文件取
 			}
 
-			if(schema.getTables().get(tableName).isGlobalTable()) {
+			if(tableConfig.isGlobalTable()) {
 				return true;
 			}
 
-			String primaryKey = schema.getTables().get(tableName).getPrimaryKey();
+			String primaryKey = tableConfig.getPrimaryKey();
 
 //			schema.getTables().get(ctx.getTables().get(0)).getParentKey() != null;
 			if(allConditions.get(tableName) == null) {//无条件
