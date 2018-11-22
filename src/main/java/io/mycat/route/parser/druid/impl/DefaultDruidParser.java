@@ -221,9 +221,15 @@ public class DefaultDruidParser implements DruidParser {
 							rangeValue = new RangeValue(null, values.get(0), RangeValue.NN);
 						}
 						routeCalculateUnit.addShardingExpr(tableName.toUpperCase(), columnName,rangeValue);
+					} else if(operator.indexOf('!') >= 0 && operator.indexOf('=') > 0) { //处理 != （不等于）操作符
+						if (values.size() == 1) {
+							routeCalculateUnit.addShardingExpr(tableName.toUpperCase(), columnName,new RangeValue(values.get(0), null, RangeValue.NOT));
+						} else {
+							routeCalculateUnit.addShardingExpr(tableName.toUpperCase(), columnName,new RangeValue(values, null, RangeValue.NOT));
+						}
 					} else if(operator.indexOf(" in") > 0 && operator.indexOf("not") >= 0) { //处理 not in操作符
 
-					}
+                    }
 				}
 			}
 			retList.add(routeCalculateUnit);

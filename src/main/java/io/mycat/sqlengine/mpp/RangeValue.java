@@ -17,6 +17,11 @@ public class RangeValue {
 	 * 左值不包含，右值不包含   (x >small vlaue and x < bigger value)
 	 */
 	public static final Integer NN = 3;
+
+	/**
+	 *  特殊处理 : !=  不等于操作符
+	 */
+	public static final Integer NOT = 4;
 	
 	public Object beginValue;
 	public Object endValue;

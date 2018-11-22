@@ -151,7 +151,21 @@ public class PartitionByFileMap extends AbstractPartitionAlgorithm implements Ru
 	private static int isInRange(String beginValue, String endValue, int rangeType, String value) {
 		int from = 1;
 		if (beginValue != null && beginValue.length() > 0) {
-			from = value.compareTo(beginValue);
+
+			//特殊处理不等于操作符 (!=)
+			if (RangeValue.NOT == rangeType) {
+				String[] dataList = beginValue.split(",");
+				boolean isMatched = isContain(dataList, value);
+			    if (isMatched) {
+			        //两个值相等，就忽略
+			        return -1;
+                } else {
+			        //否则全命中
+			        return 0;
+                }
+            } else {
+				from = value.compareTo(beginValue);
+			}
 			if (from > 0 && endValue == null) {
 				//always match
 				return 100;
@@ -174,6 +188,26 @@ public class PartitionByFileMap extends AbstractPartitionAlgorithm implements Ru
 			return 0;
 		}
 		return -1;
+	}
+
+	private static boolean isContain(String[] dataList, String value) {
+		if (dataList == null || dataList.length == 0) {
+			return false;
+		}
+		if (dataList.length == 1) {
+			return dataList[0].equals(value);
+		}
+		//[1000  1001]
+		String firstData = dataList[0].substring(1);
+		dataList[0] = firstData;
+		firstData = dataList[dataList.length - 1].substring(0, dataList[dataList.length - 1].length() - 1);
+		dataList[dataList.length - 1] = firstData;
+		for (String data : dataList) {
+			if (data.trim().equals(value)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	@Override
