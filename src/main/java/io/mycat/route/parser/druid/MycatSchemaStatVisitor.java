@@ -1,62 +1,22 @@
 package io.mycat.route.parser.druid;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Queue;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import com.alibaba.druid.sql.ast.SQLCommentHint;
-import com.alibaba.druid.sql.ast.SQLExpr;
-import com.alibaba.druid.sql.ast.SQLExprImpl;
-import com.alibaba.druid.sql.ast.SQLName;
-import com.alibaba.druid.sql.ast.SQLObject;
-import com.alibaba.druid.sql.ast.expr.SQLAggregateExpr;
-import com.alibaba.druid.sql.ast.expr.SQLAllExpr;
-import com.alibaba.druid.sql.ast.expr.SQLAnyExpr;
-import com.alibaba.druid.sql.ast.expr.SQLBetweenExpr;
-import com.alibaba.druid.sql.ast.expr.SQLBinaryOpExpr;
-import com.alibaba.druid.sql.ast.expr.SQLBinaryOperator;
-import com.alibaba.druid.sql.ast.expr.SQLCharExpr;
-import com.alibaba.druid.sql.ast.expr.SQLExistsExpr;
-import com.alibaba.druid.sql.ast.expr.SQLIdentifierExpr;
-import com.alibaba.druid.sql.ast.expr.SQLInListExpr;
-import com.alibaba.druid.sql.ast.expr.SQLInSubQueryExpr;
-import com.alibaba.druid.sql.ast.expr.SQLPropertyExpr;
-import com.alibaba.druid.sql.ast.expr.SQLQueryExpr;
-import com.alibaba.druid.sql.ast.expr.SQLSomeExpr;
-import com.alibaba.druid.sql.ast.expr.SQLValuableExpr;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableItem;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableStatement;
-import com.alibaba.druid.sql.ast.statement.SQLDeleteStatement;
-import com.alibaba.druid.sql.ast.statement.SQLExprTableSource;
-import com.alibaba.druid.sql.ast.statement.SQLJoinTableSource;
-import com.alibaba.druid.sql.ast.statement.SQLSelect;
-import com.alibaba.druid.sql.ast.statement.SQLSelectItem;
-import com.alibaba.druid.sql.ast.statement.SQLSelectQueryBlock;
-import com.alibaba.druid.sql.ast.statement.SQLSelectStatement;
-import com.alibaba.druid.sql.ast.statement.SQLSubqueryTableSource;
-import com.alibaba.druid.sql.ast.statement.SQLUnionQuery;
-import com.alibaba.druid.sql.ast.statement.SQLUpdateStatement;
-import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlCreateTableStatement;
-import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlDeleteStatement;
-import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlHintStatement;
-import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlInsertStatement;
-import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSelectQueryBlock;
+import com.alibaba.druid.sql.ast.*;
+import com.alibaba.druid.sql.ast.expr.*;
+import com.alibaba.druid.sql.ast.statement.*;
+import com.alibaba.druid.sql.dialect.mysql.ast.statement.*;
 import com.alibaba.druid.sql.dialect.mysql.visitor.MySqlSchemaStatVisitor;
 import com.alibaba.druid.sql.visitor.SchemaStatVisitor;
 import com.alibaba.druid.stat.TableStat;
 import com.alibaba.druid.stat.TableStat.Column;
 import com.alibaba.druid.stat.TableStat.Condition;
 import com.alibaba.druid.stat.TableStat.Mode;
-import com.alibaba.druid.stat.TableStat.Relationship;
-
 import io.mycat.route.util.RouterUtil;
+
+import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Druid解析器中用来从ast语法中提取表名、条件、字段等的vistor
@@ -787,12 +747,11 @@ public class MycatSchemaStatVisitor extends MySqlSchemaStatVisitor {
 	public List<List<Condition>> splitConditions() {
 		//按照or拆分
 		for(WhereUnit whereUnit : whereUnits) {
-			splitUntilNoOr(whereUnit);
+			splitExpressionWithoutOr(whereUnit);
 		}
 		
 		this.storedwhereUnits.addAll(whereUnits);
-		
-		loopFindSubWhereUnit(whereUnits);
+
 		
 		//拆分后的条件块解析成Condition列表
 		for(WhereUnit whereUnit : storedwhereUnits) {
@@ -817,7 +776,8 @@ public class MycatSchemaStatVisitor extends MySqlSchemaStatVisitor {
 					if(isExprHasOr(sqlExpr)) {
 						removeSplitedList.add(sqlExpr);
 						WhereUnit subWhereUnit = this.whereUnits.get(0);
-						splitUntilNoOr(subWhereUnit);
+
+						splitExpressionWithoutOr(subWhereUnit);
 						whereUnit.addSubWhereUnit(subWhereUnit);
 						subWhereUnits.add(subWhereUnit);
 					} else {
@@ -966,9 +926,9 @@ public class MycatSchemaStatVisitor extends MySqlSchemaStatVisitor {
 	private void getConditionsFromWhereUnit(WhereUnit whereUnit) {
 		List<List<Condition>> retList = new ArrayList<List<Condition>>();
 		//or语句外层的条件:如where condition1 and (condition2 or condition3),condition1就会在外层条件中,因为之前提取
-		List<Condition> outSideCondition = new ArrayList<Condition>();
+//		List<Condition> outSideCondition = new ArrayList<Condition>();
 //		stashOutSideConditions();
-		outSideCondition.addAll(conditions);
+//		outSideCondition.addAll(conditions);
 		this.conditions.clear();
 		for(SQLExpr sqlExpr : whereUnit.getSplitedExprList()) {
 			sqlExpr.accept(this);
@@ -979,7 +939,9 @@ public class MycatSchemaStatVisitor extends MySqlSchemaStatVisitor {
            * 
            * @author SvenAugustus
            */
-          List<Condition> conditions = mergeSqlConditionList(getConditions(), outSideCondition);
+            //不需要合并，直接把SQL表达式转换成条件列表
+			List<Condition> conditions = new ArrayList<Condition>();
+			conditions.addAll(getConditions());
 			retList.add(conditions);
 			this.conditions.clear();
 		}
@@ -1020,6 +982,133 @@ public class MycatSchemaStatVisitor extends MySqlSchemaStatVisitor {
 			}
 		}
     }
+
+	/**
+	 * 递归拆分OR
+	 *
+	 * @param whereUnit
+	 * TODO:考虑嵌套or语句，条件中有子查询、 exists等很多种复杂情况是否能兼容
+	 */
+	private void splitExpressionWithoutOr(WhereUnit whereUnit) {
+		if(whereUnit.isFinishedParse()) {
+			if(whereUnit.getSubWhereUnit().size() > 0) {
+				for(int i = 0; i < whereUnit.getSubWhereUnit().size(); i++) {
+					splitExpressionWithoutOr(whereUnit.getSubWhereUnit().get(i));
+				}
+			}
+		} else {
+            //获取到SQL 表达式的根节点
+			SQLExpr rootExpr = getRootNode(whereUnit.getCanSplitExpr()) ;
+			List<SQLExpr> result = new ArrayList<>();
+			//递归拆分OR
+			splitExpressionWithoutOr(rootExpr, result);
+			int len = result.size();
+			for (int index = 0; index < len; index++) {
+				addExprIfNotFalse(whereUnit, result.get(index));
+			}
+			whereUnit.setFinishedParse(true);
+		}
+	}
+
+
+	private static SQLExpr getRootNode(SQLExpr expr) {
+		SQLObject parent = expr.getParent();
+		if (parent instanceof SQLExprImpl) {
+			SQLObject parentOfParent = parent.getParent();
+			if (parentOfParent == expr) {
+				return expr;
+			} else if (parentOfParent instanceof SQLExprImpl) {
+				SQLExprImpl sqlExpr = (SQLExprImpl) parentOfParent;
+				return getRootNode(sqlExpr);
+			} else {
+				return (SQLExprImpl)parent;
+			}
+		}
+		return expr;
+	}
+
+	private static void splitExpressionWithoutOr(SQLExpr expr, List<SQLExpr> result) {
+		if (expr == null) {
+			return;
+		}
+		if (expr instanceof  SQLBinaryOpExpr) {
+			SQLBinaryOpExpr binaryOpExpr = (SQLBinaryOpExpr) expr;
+			if (binaryOpExpr.getOperator() == SQLBinaryOperator.BooleanOr) {
+				//(left + right) = result
+                //拆分or条件，递归把or条件转换成多个
+				splitExpressionWithoutOr(binaryOpExpr.getLeft(), result);
+				splitExpressionWithoutOr(binaryOpExpr.getRight(), result);
+			} else if (binaryOpExpr.getOperator() == SQLBinaryOperator.BooleanAnd) {
+			    //and子条件里可能还包括Or子句，递归尝试寻找or子句，并拆分它。
+				List<SQLExpr> leftResult = new ArrayList<>();
+				splitExpressionWithoutOr(binaryOpExpr.getLeft(), leftResult);
+				List<SQLExpr> rightResult = new ArrayList<>();
+				splitExpressionWithoutOr(binaryOpExpr.getRight(), rightResult);
+				//(left * right) = result
+                //如果左右子句都没有递归包含or子句，就不做改变
+				if (leftResult.size() == 1 && rightResult.size() == 1) {
+					//There are no Or expression in both left and right operator..
+					result.add(binaryOpExpr);
+				} else {
+				    //如果左右子节点包含or子句，就采用笛卡尔乘积方式拆分
+					result.addAll(multipleArray(leftResult, rightResult));
+				}
+			}
+		} else if (expr instanceof SQLUnaryExpr) {
+		    //递归处理单元表达式内容，寻找or子句
+			splitExpressionWithoutOr(((SQLUnaryExpr) expr).getExpr(), result);
+		} else {
+			result.add(expr);
+		}
+	}
+
+    /**
+     * 通过笛卡尔乘积拆分or子句
+     * @param leftResult
+     * @param rightResult
+     * @return
+     */
+	private static List<SQLExpr> multipleArray(List<SQLExpr> leftResult, List<SQLExpr> rightResult) {
+		int len1 = leftResult.size();
+		int len2 = rightResult.size();
+		List<SQLExpr> newResult = null;
+		if (len1 == 0) {
+			newResult = new ArrayList<>();
+			newResult.addAll(rightResult);
+		} else if (len2 == 0) {
+			newResult = leftResult;
+		} else {
+			newResult = new ArrayList<>();
+			// m * n
+			for (int index1 = 0; index1 < len1; index1++) {
+				for (int index2 = 0; index2 < len2; index2++) {
+					SQLBinaryOpExpr newExpr = new SQLBinaryOpExpr();
+					newExpr.setLeft(leftResult.get(index1));
+					newExpr.setOperator(SQLBinaryOperator.BooleanAnd);
+					newExpr.setRight(rightResult.get(index2));
+					newExpr.setDbType(getDBType(leftResult.get(index1), rightResult.get(index2)));
+					newResult.add(newExpr);
+				}
+			}
+		}
+		return newResult;
+	}
+
+    /**
+     *  获取到DBType.
+     * @param left
+     * @param right
+     * @return
+     */
+	private static String getDBType(SQLExpr left, SQLExpr right) {
+		if (left instanceof SQLBinaryOpExpr) {
+			return ((SQLBinaryOpExpr) left).getDbType();
+		}
+		if (right instanceof SQLBinaryOpExpr) {
+			return ((SQLBinaryOpExpr) right).getDbType();
+		}
+		return null;
+	}
 
 	private void addExprIfNotFalse(WhereUnit whereUnit, SQLExpr expr) {
 		//非永假条件加入路由计算
