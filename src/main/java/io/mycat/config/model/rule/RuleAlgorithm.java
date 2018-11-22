@@ -43,5 +43,5 @@ public interface RuleAlgorithm {
 	 */
 	Integer calculate(String columnValue) ;
 	
-	Integer[] calculateRange(String beginValue,String endValue) ;
+	Integer[] calculateRange(String beginValue,String endValue, int rangeType) ;
 }

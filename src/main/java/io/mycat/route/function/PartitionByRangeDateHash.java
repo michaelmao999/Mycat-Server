@@ -109,7 +109,7 @@ public class PartitionByRangeDateHash extends AbstractPartitionAlgorithm impleme
     }
 
     @Override
-    public Integer[] calculateRange(String beginValue, String endValue)
+    public Integer[] calculateRange(String beginValue, String endValue, int rangeType)
     {
         Integer begin = 0, end = 0;
         begin = calculateStart(beginValue);

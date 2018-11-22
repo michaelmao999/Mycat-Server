@@ -66,7 +66,7 @@ public final class PartitionByLong extends AbstractPartitionAlgorithm implements
 	}
 	
 	@Override
-	public Integer[] calculateRange(String beginValue, String endValue)  {
+	public Integer[] calculateRange(String beginValue, String endValue, int rangeType)  {
 		return AbstractPartitionAlgorithm.calculateSequenceRange(this, beginValue, endValue);
 	}
 

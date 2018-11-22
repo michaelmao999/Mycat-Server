@@ -23,15 +23,13 @@
  */
 package io.mycat.route.function;
 
+import io.mycat.config.model.rule.RuleAlgorithm;
+import io.mycat.sqlengine.mpp.RangeValue;
+
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-
-import io.mycat.config.model.rule.RuleAlgorithm;
+import java.util.*;
 
 /**
  * 
@@ -41,6 +39,7 @@ public class PartitionByFileMap extends AbstractPartitionAlgorithm implements Ru
 
 	private String mapFile;
 	private Map<Object, Integer> app2Partition;
+	private List<String> sortedKeys;
 	/**
 	 * Map<Object, Integer> app2Partition中key值的类型：默认值为0，0表示Integer，非零表示String
 	 */
@@ -65,6 +64,17 @@ public class PartitionByFileMap extends AbstractPartitionAlgorithm implements Ru
 	public void init() {
 
 		initialize();
+	}
+
+	public void init4Test(Map<Object, Integer> app2Partition) {
+		this.app2Partition = app2Partition;
+		sortedKeys = new ArrayList<String>();
+		Iterator<Object> iter = app2Partition.keySet().iterator();
+		while (iter.hasNext()) {
+			sortedKeys.add(iter.next() + "");
+		}
+		Collections.sort(sortedKeys);
+
 	}
 
 	public void setMapFile(String mapFile) {
@@ -98,7 +108,74 @@ public class PartitionByFileMap extends AbstractPartitionAlgorithm implements Ru
 			throw new IllegalArgumentException(new StringBuilder().append("columnValue:").append(columnValue).append(" Please check if the format satisfied.").toString(),e);
 		}
 	}
-	
+
+	/**
+	 * 返回所有被路由到的节点的编号
+	 * 返回长度为0的数组表示所有节点都被路由（默认）
+	 * 返回null表示没有节点被路由到
+	 */
+	@Override
+	public Integer[] calculateRange(String beginValue, String endValue, int rangeType)  {
+		List<Integer> hashList = scanInRange(beginValue, endValue, rangeType);
+		if (hashList.isEmpty()) {
+			return new Integer[0];
+		}
+		Integer[] result = new Integer[hashList.size()];
+		return hashList.toArray(result);
+	}
+
+	private List<Integer> scanInRange(String beginValue, String endValue, int rangeType) {
+		List<Integer> hashList = new ArrayList<>();
+		int len = sortedKeys.size();
+		boolean isMatch = false;
+		for (int index = 0; index < len; index++) {
+			String key = sortedKeys.get(index);
+			if (isMatch) {
+				hashList.add(app2Partition.get(key));
+			} else {
+				int compareResult = isInRange(beginValue, endValue, rangeType, key);
+				//在范围内
+				if (compareResult == 0 || compareResult == 100) {
+					hashList.add(app2Partition.get(Integer.valueOf(key)));
+				}
+				if (compareResult == 100) {
+					isMatch = true;
+				} else if (compareResult > 0) {
+					break;
+				}
+			}
+		}
+		return hashList;
+	}
+
+	private static int isInRange(String beginValue, String endValue, int rangeType, String value) {
+		int from = 1;
+		if (beginValue != null && beginValue.length() > 0) {
+			from = value.compareTo(beginValue);
+			if (from > 0 && endValue == null) {
+				//always match
+				return 100;
+			}
+		}
+		int to = -1;
+		if (endValue != null && endValue.length() > 0) {
+			to = value.compareTo(endValue);
+		}
+		if (to > 0) {
+			return to;
+		}
+		if (RangeValue.EE == rangeType && (from >= 0 && to <= 0)) {
+			return 0;
+		} else if (RangeValue.EN == rangeType && (from >= 0 && to < 0)) {
+			return 0;
+		} else if (RangeValue.NE == rangeType && (from > 0 && to <= 0)) {
+			return 0;
+		}else if (RangeValue.NN == rangeType && (from > 0 && to < 0)) {
+			return 0;
+		}
+		return -1;
+	}
+
 	@Override
 	public int getPartitionNum() {
 		Set<Integer> set = new HashSet<Integer>(app2Partition.values());
@@ -144,6 +221,13 @@ public class PartitionByFileMap extends AbstractPartitionAlgorithm implements Ru
 			if(defaultNode >= 0) {
 				app2Partition.put(DEFAULT_NODE, defaultNode);
 			}
+			//基于key排序，稍后可用于range查找.
+			sortedKeys = new ArrayList<String>();
+			Iterator<Object> iter = app2Partition.keySet().iterator();
+			while (iter.hasNext()) {
+				sortedKeys.add(iter.next() + "");
+			}
+			Collections.sort(sortedKeys);
 		} catch (Exception e) {
 			if (e instanceof RuntimeException) {
 				throw (RuntimeException) e;
@@ -158,4 +242,5 @@ public class PartitionByFileMap extends AbstractPartitionAlgorithm implements Ru
 			}
 		}
 	}
+
 }

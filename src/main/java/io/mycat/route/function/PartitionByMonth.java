@@ -122,16 +122,16 @@ public class PartitionByMonth extends AbstractPartitionAlgorithm implements
 	}
 
 	@Override
-	public Integer[] calculateRange(String beginValue, String endValue) {
+	public Integer[] calculateRange(String beginValue, String endValue, int rangeType) {
 		try {
-			return doCalculateRange(beginValue, endValue,beginDate);
+			return doCalculateRange(beginValue, endValue,beginDate, rangeType);
 		} catch (ParseException e) {
 			LOGGER.error("error",e);
 			return new Integer[0];
 		}
 	}
 
-	private Integer[] doCalculateRange(String beginValue, String endValue,Calendar beginDate) throws ParseException {
+	private Integer[] doCalculateRange(String beginValue, String endValue,Calendar beginDate, int rangeType) throws ParseException {
 		int startPartition, endPartition;
 		Calendar partitionTime = Calendar.getInstance();
 		SimpleDateFormat format = new SimpleDateFormat(dateFormat);

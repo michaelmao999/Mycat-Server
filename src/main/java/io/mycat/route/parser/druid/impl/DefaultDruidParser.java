@@ -204,6 +204,25 @@ public class DefaultDruidParser implements DruidParser {
 								routeCalculateUnit.addShardingExpr(tableName.toUpperCase(), columnName, rv);
 					} else if(operator.equals("=") || operator.toLowerCase().equals("in")){ //只处理=号和in操作符,其他忽略
 								routeCalculateUnit.addShardingExpr(tableName.toUpperCase(), columnName, values.toArray());
+					//改进支持 > or < 符号的路由， 目前先支持PartitionByFileMap
+					} else if (operator.indexOf('>') >= 0) {  //处理> 和 >= 操作符
+						RangeValue rangeValue = null;
+						if (operator.indexOf('=') > 0) {
+							rangeValue = new RangeValue(values.get(0), null, RangeValue.EN);
+						} else {
+							rangeValue = new RangeValue(values.get(0), null, RangeValue.NN);
+						}
+						routeCalculateUnit.addShardingExpr(tableName.toUpperCase(), columnName,rangeValue);
+					} else if (operator.indexOf('<') >= 0) { //处理< 和 <= 操作符
+						RangeValue rangeValue = null;
+						if (operator.indexOf('=') > 0) {
+							rangeValue = new RangeValue(null, values.get(0), RangeValue.EN);
+						} else {
+							rangeValue = new RangeValue(null, values.get(0), RangeValue.NN);
+						}
+						routeCalculateUnit.addShardingExpr(tableName.toUpperCase(), columnName,rangeValue);
+					} else if(operator.indexOf(" in") > 0 && operator.indexOf("not") >= 0) { //处理 not in操作符
+
 					}
 				}
 			}

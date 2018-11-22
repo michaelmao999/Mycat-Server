@@ -25,7 +25,7 @@ public abstract class AbstractPartitionAlgorithm implements RuleAlgorithm ,Seria
 	 * 返回null表示没有节点被路由到
 	 */
 	@Override
-	public Integer[] calculateRange(String beginValue, String endValue)  {
+	public Integer[] calculateRange(String beginValue, String endValue, int rangeType)  {
 		return new Integer[0];
 	}
 	

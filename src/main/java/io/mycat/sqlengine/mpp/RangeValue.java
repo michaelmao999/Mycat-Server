@@ -2,11 +2,20 @@ package io.mycat.sqlengine.mpp;
 
 public class RangeValue {
 	/*
-	 * 左值不包含 右值包含
+	 * 左值不包含 右值包含  (x > small vlaue and x <= bigger value)
 	 */
 	public static final Integer NE = 0;
+	/**
+	 * 左右值都包含 (x >= small vlaue and x <= bigger value)
+	 */
 	public static final Integer EE = 1;
+	/**
+	 * 左值包含，右值不包含   (x >= small vlaue and x < bigger value)
+	 */
 	public static final Integer EN = 2;
+	/**
+	 * 左值不包含，右值不包含   (x >small vlaue and x < bigger value)
+	 */
 	public static final Integer NN = 3;
 	
 	public Object beginValue;
@@ -23,8 +32,12 @@ public class RangeValue {
 	@Override
 	public int hashCode(){
 		int hash = 0;
-		hash = beginValue.hashCode();
-		hash = hash*31+endValue.hashCode();
+		if (beginValue != null) {
+			hash = beginValue.hashCode();
+		}
+		if (endValue != null) {
+			hash = hash*31+endValue.hashCode();
+		}
 		hash = hash*31+rangeType;
 		return hash;
 	}

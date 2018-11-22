@@ -1,13 +1,12 @@
 package io.mycat.route.function;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-
+import io.mycat.config.model.rule.RuleAlgorithm;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.mycat.config.model.rule.RuleAlgorithm;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 
 /**
  * 根据日期查询日志数据 冷热数据分布 ，最近n个月的到实时交易库查询，超过n个月的按照m天分片
@@ -82,7 +81,7 @@ public class PartitionByHotDate extends AbstractPartitionAlgorithm implements Ru
 	}
 
 	@Override
-	public Integer[] calculateRange(String beginValue, String endValue)  {
+	public Integer[] calculateRange(String beginValue, String endValue, int rangeType)  {
 		Integer[] targetPartition = null;
 		try {
 			long startTime = formatter.get().parse(beginValue).getTime();

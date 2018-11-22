@@ -1053,6 +1053,8 @@ public class MycatSchemaStatVisitor extends MySqlSchemaStatVisitor {
 				    //如果左右子节点包含or子句，就采用笛卡尔乘积方式拆分
 					result.addAll(multipleArray(leftResult, rightResult));
 				}
+			}else {
+				result.add(binaryOpExpr);
 			}
 		} else if (expr instanceof SQLUnaryExpr) {
 		    //递归处理单元表达式内容，寻找or子句

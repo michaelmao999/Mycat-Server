@@ -1,16 +1,15 @@
 package io.mycat.route.function;
 
 
+import io.mycat.config.model.rule.RuleAlgorithm;
+import org.apache.log4j.Logger;
+
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.List;
-
-import org.apache.log4j.Logger;
-
-import io.mycat.config.model.rule.RuleAlgorithm;
 
 /**
  * 例子 按月份列分区 ，每个自然月一个分片，格式 between操作解析的范例
@@ -104,7 +103,7 @@ public class PartitionByMonthAndHistory extends AbstractPartitionAlgorithm imple
     }
 
     @Override
-    public Integer[] calculateRange(String beginValue, String endValue) {
+    public Integer[] calculateRange(String beginValue, String endValue, int rangeType) {
         try {
             int startPartition, endPartition;
             Calendar partitionTime = Calendar.getInstance();

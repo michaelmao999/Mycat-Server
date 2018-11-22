@@ -23,6 +23,7 @@
  */
 package io.mycat.route.function;
 
+import io.mycat.sqlengine.mpp.RangeValue;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -104,18 +105,18 @@ public class PartitionByMonthTest {
 		scene.setDateFormat("yyyy-MM-dd");
 		scene.init();
 		Assert.assertEquals(
-				Arrays.toString(partition.calculateRange("2014-01-01", "2014-04-03")),
-				Arrays.toString(scene.calculateRange("2014-01-01", "2014-04-03"))
+				Arrays.toString(partition.calculateRange("2014-01-01", "2014-04-03", RangeValue.EE)),
+				Arrays.toString(scene.calculateRange("2014-01-01", "2014-04-03", RangeValue.EE))
 		);
 		Assert.assertEquals(
-				Arrays.toString(partition.calculateRange("2013-01-01", "2014-04-03")),
-				Arrays.toString(scene.calculateRange("2013-01-01", "2014-04-03"))
+				Arrays.toString(partition.calculateRange("2013-01-01", "2014-04-03", RangeValue.EE)),
+				Arrays.toString(scene.calculateRange("2013-01-01", "2014-04-03", RangeValue.EE))
 		);
 		Assert.assertEquals(
 				// []
-				Arrays.toString(partition.calculateRange("2015-01-01", "2014-04-03")),
+				Arrays.toString(partition.calculateRange("2015-01-01", "2014-04-03", RangeValue.EE)),
 				// []
-				Arrays.toString(scene.calculateRange("2015-01-01", "2014-04-03"))
+				Arrays.toString(scene.calculateRange("2015-01-01", "2014-04-03", RangeValue.EE))
 		);
 	}
 	@Test

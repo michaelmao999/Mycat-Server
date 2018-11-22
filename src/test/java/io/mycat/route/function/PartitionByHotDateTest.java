@@ -23,12 +23,13 @@
  */
 package io.mycat.route.function;
 
+import io.mycat.sqlengine.mpp.RangeValue;
+import org.junit.Assert;
+import org.junit.Test;
+
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
-
-import org.junit.Assert;
-import org.junit.Test;
 
 public class PartitionByHotDateTest {
 
@@ -67,23 +68,23 @@ PartitionByHotDate partition = new PartitionByHotDate();
 		cDate = Calendar.getInstance();
 		cDate.add(Calendar.DATE,-5);
 		System.err.println(dateFormat.format(cDate.getTime()));
-		Assert.assertEquals(true, 0 == partition.calculateRange(dateFormat.format(cDate.getTime()),dateFormat.format(Calendar.getInstance().getTime()))[0]);
+		Assert.assertEquals(true, 0 == partition.calculateRange(dateFormat.format(cDate.getTime()),dateFormat.format(Calendar.getInstance().getTime()), RangeValue.EE)[0]);
 		
 		cDate = Calendar.getInstance();
 		cDate.add(Calendar.DATE,-11);
 		System.err.println(dateFormat.format(cDate.getTime()));
-		Assert.assertEquals(true, 0 == partition.calculateRange(dateFormat.format(cDate.getTime()),dateFormat.format(Calendar.getInstance().getTime()))[0]);
-		Assert.assertEquals(true, 1 == partition.calculateRange(dateFormat.format(cDate.getTime()),dateFormat.format(Calendar.getInstance().getTime()))[1]);
-		Assert.assertEquals(true, 2 == partition.calculateRange(dateFormat.format(cDate.getTime()),dateFormat.format(Calendar.getInstance().getTime()))[2]);
+		Assert.assertEquals(true, 0 == partition.calculateRange(dateFormat.format(cDate.getTime()),dateFormat.format(Calendar.getInstance().getTime()), RangeValue.EE)[0]);
+		Assert.assertEquals(true, 1 == partition.calculateRange(dateFormat.format(cDate.getTime()),dateFormat.format(Calendar.getInstance().getTime()), RangeValue.EE)[1]);
+		Assert.assertEquals(true, 2 == partition.calculateRange(dateFormat.format(cDate.getTime()),dateFormat.format(Calendar.getInstance().getTime()), RangeValue.EE)[2]);
 
 		cDate = Calendar.getInstance();
 		cDate.add(Calendar.DATE, -21);
 		System.err.println(dateFormat.format(cDate.getTime()));
-		Assert.assertEquals(true, 0 == partition.calculateRange(dateFormat.format(cDate.getTime()),dateFormat.format(Calendar.getInstance().getTime()))[0]);
-		Assert.assertEquals(true, 1 == partition.calculateRange(dateFormat.format(cDate.getTime()),dateFormat.format(Calendar.getInstance().getTime()))[1]);
-		Assert.assertEquals(true, 2 == partition.calculateRange(dateFormat.format(cDate.getTime()),dateFormat.format(Calendar.getInstance().getTime()))[2]);
-		Assert.assertEquals(true, 12 == partition.calculateRange(dateFormat.format(cDate.getTime()),dateFormat.format(Calendar.getInstance().getTime()))[12]);
-		Assert.assertEquals(true, 13 == partition.calculateRange(dateFormat.format(cDate.getTime()),dateFormat.format(Calendar.getInstance().getTime())).length);
+		Assert.assertEquals(true, 0 == partition.calculateRange(dateFormat.format(cDate.getTime()),dateFormat.format(Calendar.getInstance().getTime()), RangeValue.EE)[0]);
+		Assert.assertEquals(true, 1 == partition.calculateRange(dateFormat.format(cDate.getTime()),dateFormat.format(Calendar.getInstance().getTime()), RangeValue.EE)[1]);
+		Assert.assertEquals(true, 2 == partition.calculateRange(dateFormat.format(cDate.getTime()),dateFormat.format(Calendar.getInstance().getTime()), RangeValue.EE)[2]);
+		Assert.assertEquals(true, 12 == partition.calculateRange(dateFormat.format(cDate.getTime()),dateFormat.format(Calendar.getInstance().getTime()), RangeValue.EE)[12]);
+		Assert.assertEquals(true, 13 == partition.calculateRange(dateFormat.format(cDate.getTime()),dateFormat.format(Calendar.getInstance().getTime()), RangeValue.EE).length);
 
 	}
 }

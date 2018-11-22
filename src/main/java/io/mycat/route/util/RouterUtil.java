@@ -1,24 +1,5 @@
 package io.mycat.route.util;
 
-import java.sql.SQLNonTransientException;
-import java.sql.SQLSyntaxErrorException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.regex.Pattern;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.alibaba.druid.sql.ast.SQLExpr;
 import com.alibaba.druid.sql.ast.SQLStatement;
 import com.alibaba.druid.sql.ast.expr.SQLCharExpr;
@@ -34,7 +15,6 @@ import com.google.common.base.Strings;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-
 import io.mycat.MycatServer;
 import io.mycat.backend.datasource.PhysicalDBNode;
 import io.mycat.backend.datasource.PhysicalDBPool;
@@ -58,6 +38,14 @@ import io.mycat.server.parser.ServerParse;
 import io.mycat.sqlengine.mpp.ColumnRoutePair;
 import io.mycat.sqlengine.mpp.LoadData;
 import io.mycat.util.StringUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.sql.SQLNonTransientException;
+import java.sql.SQLSyntaxErrorException;
+import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.regex.Pattern;
 
 /**
  * 从ServerRouterUtil中抽取的一些公用方法，路由解析工具类
@@ -709,7 +697,7 @@ public class RouterUtil {
         
         prefix = prefix.replaceFirst("\\(", pk);
         values = values.replaceFirst("\\(", mycatSeqPrefix);
-        values =Pattern.compile(",\\s*\\(").matcher(values).replaceAll(","+mycatSeqPrefix);
+        values = Pattern.compile(",\\s*\\(").matcher(values).replaceAll(","+mycatSeqPrefix);
         processSQL(sc, schema,prefix+values, sqlType);
     }
 
@@ -981,9 +969,20 @@ public class RouterUtil {
 					colPair.setNodeId(nodeIndx);
 				}
 			} else if (colPair.rangeValue != null) {
-				Integer[] nodeRange = algorithm.calculateRange(
-						String.valueOf(colPair.rangeValue.beginValue),
-						String.valueOf(colPair.rangeValue.endValue));
+				Integer[] nodeRange = null;
+				if (colPair.rangeValue.beginValue != null && colPair.rangeValue.endValue != null) {
+                    nodeRange = algorithm.calculateRange(
+                            String.valueOf(colPair.rangeValue.beginValue),
+                            String.valueOf(colPair.rangeValue.endValue), colPair.rangeValue.rangeType);
+                } else if (colPair.rangeValue.beginValue != null) {
+                    nodeRange = algorithm.calculateRange(
+                            String.valueOf(colPair.rangeValue.beginValue),
+                            null, colPair.rangeValue.rangeType);
+                } else {
+                    nodeRange = algorithm.calculateRange(
+                            null,
+                            String.valueOf(colPair.rangeValue.endValue), colPair.rangeValue.rangeType);
+                }
 				if (nodeRange != null) {
 					/**
 					 * 不能确认 colPair的 nodeid是否会有其它影响
@@ -1240,8 +1239,17 @@ public class RouterUtil {
 						}
 					}
 					if(pair.rangeValue != null) {
-						Integer[] tableIndexs = algorithm
-								.calculateRange(pair.rangeValue.beginValue.toString(), pair.rangeValue.endValue.toString());
+						Integer[] tableIndexs = null;
+						if (pair.rangeValue.beginValue != null && pair.rangeValue.endValue != null) {
+                            tableIndexs = algorithm
+                                    .calculateRange(pair.rangeValue.beginValue.toString(), pair.rangeValue.endValue.toString(), pair.rangeValue.rangeType);
+                        } else if (pair.rangeValue.beginValue != null) {
+                            tableIndexs = algorithm
+                                    .calculateRange(pair.rangeValue.beginValue.toString(), null, pair.rangeValue.rangeType);
+                        } else {
+                            tableIndexs = algorithm
+                                    .calculateRange(null, pair.rangeValue.endValue.toString(), pair.rangeValue.rangeType);
+                        }
 						for(Integer idx : tableIndexs) {
 							String subTable = tableConfig.getDistTables().get(idx);
 							if(subTable != null) {
@@ -1289,8 +1297,8 @@ public class RouterUtil {
 	 * 处理分库表路由
 	 */
 	public static void findRouteWithcConditionsForTables(SchemaConfig schema, RouteResultset rrs,
-			Map<String, Map<String, Set<ColumnRoutePair>>> tablesAndConditions,
-			Map<String, Set<String>> tablesRouteMap, String sql, LayerCachePool cachePool, boolean isSelect)
+                                                         Map<String, Map<String, Set<ColumnRoutePair>>> tablesAndConditions,
+                                                         Map<String, Set<String>> tablesRouteMap, String sql, LayerCachePool cachePool, boolean isSelect)
 			throws SQLNonTransientException {
 
 		//为分库表找路由
@@ -1307,24 +1315,24 @@ public class RouterUtil {
 				routeToDistTableNode(tableName,schema,rrs,sql, tablesAndConditions, cachePool,isSelect);
 			}
 			//全局表或者不分库的表略过（全局表后面再计算）
-			if(tableConfig.isGlobalTable() || schema.getTables().get(tableName).getDataNodes().size() == 1) {
+			if(tableConfig.isGlobalTable() || tableConfig.getDataNodes().size() == 1) {
 				continue;
 			} else {//非全局表：分库表、childTable、其他
 				Map<String, Set<ColumnRoutePair>> columnsMap = entry.getValue();
 				String joinKey = tableConfig.getJoinKey();
 				String partionCol = tableConfig.getPartitionColumn();
 				String primaryKey = tableConfig.getPrimaryKey();
-				boolean isFoundPartitionValue = partionCol != null && entry.getValue().get(partionCol) != null;
+				boolean isFoundPartitionValue = partionCol != null && columnsMap.get(partionCol) != null;
                 boolean isLoadData=false;
                 if (LOGGER.isDebugEnabled()
 						&& sql.startsWith(LoadData.loadDataHint)||rrs.isLoadData()) {
                      //由于load data一次会计算很多路由数据，如果输出此日志会极大降低load data的性能
                          isLoadData=true;
                 }
-				if(entry.getValue().get(primaryKey) != null && entry.getValue().size() == 1&&!isLoadData)
+				if(columnsMap.get(primaryKey) != null && columnsMap.size() == 1&&!isLoadData)
                 {//主键查找
 					// try by primary key if found in cache
-					Set<ColumnRoutePair> primaryKeyPairs = entry.getValue().get(primaryKey);
+					Set<ColumnRoutePair> primaryKeyPairs = columnsMap.get(primaryKey);
 					if (primaryKeyPairs != null) {
 						if (LOGGER.isDebugEnabled()) {
                                  LOGGER.debug("try to find cache by primary key ");
@@ -1398,8 +1406,18 @@ public class RouterUtil {
 								}
 							}
 							if(pair.rangeValue != null) {
-								Integer[] nodeIndexs = algorithm
-										.calculateRange(pair.rangeValue.beginValue.toString(), pair.rangeValue.endValue.toString());
+								Integer[] nodeIndexs = null;
+								if (pair.rangeValue.beginValue != null && pair.rangeValue.endValue != null) {
+                                    nodeIndexs = algorithm
+                                            .calculateRange(pair.rangeValue.beginValue.toString(), pair.rangeValue.endValue.toString(), pair.rangeValue.rangeType);
+                                } else if (pair.rangeValue.beginValue != null) {
+                                    nodeIndexs = algorithm
+                                            .calculateRange(pair.rangeValue.beginValue.toString(), null, pair.rangeValue.rangeType);
+                                } else {
+                                    nodeIndexs = algorithm
+                                            .calculateRange(null, pair.rangeValue.endValue.toString(), pair.rangeValue.rangeType);
+                                }
+
 								ArrayList<String> dataNodes = tableConfig.getDataNodes();
 								String node;
 								for(Integer idx : nodeIndexs) {
