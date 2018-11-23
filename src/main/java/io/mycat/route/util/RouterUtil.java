@@ -969,20 +969,9 @@ public class RouterUtil {
 					colPair.setNodeId(nodeIndx);
 				}
 			} else if (colPair.rangeValue != null) {
-				Integer[] nodeRange = null;
-				if (colPair.rangeValue.beginValue != null && colPair.rangeValue.endValue != null) {
-                    nodeRange = algorithm.calculateRange(
-                            String.valueOf(colPair.rangeValue.beginValue),
-                            String.valueOf(colPair.rangeValue.endValue), colPair.rangeValue.rangeType);
-                } else if (colPair.rangeValue.beginValue != null) {
-                    nodeRange = algorithm.calculateRange(
-                            String.valueOf(colPair.rangeValue.beginValue),
-                            null, colPair.rangeValue.rangeType);
-                } else {
-                    nodeRange = algorithm.calculateRange(
-                            null,
-                            String.valueOf(colPair.rangeValue.endValue), colPair.rangeValue.rangeType);
-                }
+				Integer[] nodeRange = algorithm.calculateRange(
+                            toString(colPair.rangeValue.beginValue),
+							toString(colPair.rangeValue.endValue), colPair.rangeValue.rangeType);
 				if (nodeRange != null) {
 					/**
 					 * 不能确认 colPair的 nodeid是否会有其它影响
@@ -1239,18 +1228,9 @@ public class RouterUtil {
 						}
 					}
 					if(pair.rangeValue != null) {
-						Integer[] tableIndexs = null;
-						if (pair.rangeValue.beginValue != null && pair.rangeValue.endValue != null) {
-                            tableIndexs = algorithm
-                                    .calculateRange(pair.rangeValue.beginValue.toString(), pair.rangeValue.endValue.toString(), pair.rangeValue.rangeType);
-                        } else if (pair.rangeValue.beginValue != null) {
-                            tableIndexs = algorithm
-                                    .calculateRange(pair.rangeValue.beginValue.toString(), null, pair.rangeValue.rangeType);
-                        } else {
-                            tableIndexs = algorithm
-                                    .calculateRange(null, pair.rangeValue.endValue.toString(), pair.rangeValue.rangeType);
-                        }
-						for(Integer idx : tableIndexs) {
+						Integer[] tableIndexs = algorithm
+                                    .calculateRange(toString(pair.rangeValue.beginValue), toString(pair.rangeValue.endValue), pair.rangeValue.rangeType);
+       					for(Integer idx : tableIndexs) {
 							String subTable = tableConfig.getDistTables().get(idx);
 							if(subTable != null) {
 								tablesRouteSet.add(subTable);
@@ -1406,18 +1386,8 @@ public class RouterUtil {
 								}
 							}
 							if(pair.rangeValue != null) {
-								Integer[] nodeIndexs = null;
-								if (pair.rangeValue.beginValue != null && pair.rangeValue.endValue != null) {
-                                    nodeIndexs = algorithm
-                                            .calculateRange(pair.rangeValue.beginValue.toString(), pair.rangeValue.endValue.toString(), pair.rangeValue.rangeType);
-                                } else if (pair.rangeValue.beginValue != null) {
-                                    nodeIndexs = algorithm
-                                            .calculateRange(pair.rangeValue.beginValue.toString(), null, pair.rangeValue.rangeType);
-                                } else {
-                                    nodeIndexs = algorithm
-                                            .calculateRange(null, pair.rangeValue.endValue.toString(), pair.rangeValue.rangeType);
-                                }
-
+								Integer[] nodeIndexs = algorithm
+                                            .calculateRange(toString(pair.rangeValue.beginValue), toString(pair.rangeValue.endValue), pair.rangeValue.rangeType);
 								ArrayList<String> dataNodes = tableConfig.getDataNodes();
 								String node;
 								for(Integer idx : nodeIndexs) {
@@ -1482,6 +1452,52 @@ public class RouterUtil {
 			}
 		}
 	}
+
+	private static String toString(Object data) {
+		if (data == null) {
+			return null;
+		}
+		if (data instanceof List) {
+			return toString((List)data);
+		} else if (data.getClass().isArray()) {
+			return toString((Object[]) data);
+		}else {
+			return data.toString();
+		}
+	}
+
+	private static String toString(Object[] dataArray) {
+		if (dataArray == null || dataArray.length == 0) {
+			return null;
+		}
+		boolean isFirst = true;
+		StringBuilder builder = new StringBuilder();
+		for(Object data : dataArray) {
+			if (isFirst) {
+				isFirst = false;
+			} else {
+				builder.append(',');
+			}
+			builder.append(data.toString());
+		}
+		return builder.toString();
+	}
+
+	private static String toString(List list) {
+		if (list == null || list.size() == 0) {
+			return null;
+		}
+		int len = list.size();
+		StringBuilder builder = new StringBuilder();
+		for (int index = 0; index < len; index++) {
+			if (index != 0) {
+				builder.append(',');
+			}
+			builder.append(list.get(index).toString());
+		}
+		return builder.toString();
+	}
+
 
 	public static boolean isAllGlobalTable(DruidShardingParseInfo ctx, SchemaConfig schema) {
 		boolean isAllGlobal = false;

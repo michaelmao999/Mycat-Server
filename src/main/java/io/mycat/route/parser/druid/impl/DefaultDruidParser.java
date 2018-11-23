@@ -225,7 +225,7 @@ public class DefaultDruidParser implements DruidParser {
 						if (values.size() == 1) {
 							routeCalculateUnit.addShardingExpr(tableName.toUpperCase(), columnName,new RangeValue(values.get(0), null, RangeValue.NOT));
 						} else {
-							routeCalculateUnit.addShardingExpr(tableName.toUpperCase(), columnName,new RangeValue(values, null, RangeValue.NOT));
+							routeCalculateUnit.addShardingExpr(tableName.toUpperCase(), columnName,new RangeValue(values.toArray(), null, RangeValue.NOT));
 						}
 					} else if(operator.indexOf(" in") > 0 && operator.indexOf("not") >= 0) { //处理 not in操作符
 

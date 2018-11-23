@@ -198,10 +198,6 @@ public class PartitionByFileMap extends AbstractPartitionAlgorithm implements Ru
 			return dataList[0].equals(value);
 		}
 		//[1000  1001]
-		String firstData = dataList[0].substring(1);
-		dataList[0] = firstData;
-		firstData = dataList[dataList.length - 1].substring(0, dataList[dataList.length - 1].length() - 1);
-		dataList[dataList.length - 1] = firstData;
 		for (String data : dataList) {
 			if (data.trim().equals(value)) {
 				return true;

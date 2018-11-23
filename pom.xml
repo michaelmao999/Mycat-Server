@@ -12,6 +12,7 @@
 
 	<properties>
 		<app.encoding>UTF-8</app.encoding>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<!-- maven.build.timestamp.format>yyyyMMdd</maven.build.timestamp.format> 
 			<buildNumber>${maven.build.timestamp}</buildNumber      -->
 		<maven.build.timestamp.format>yyyy-MM-dd HH:mm:ss</maven.build.timestamp.format>
@@ -19,9 +20,9 @@
 		<version.file>version.txt</version.file>
 	</properties>
 	<scm>
-		<connection>scm:git:ssh://apachemycat@github.com/MyCATApache/Mycat-Server.git</connection>
-		<developerConnection>scm:git:ssh://apachemycat@github.com/MyCATApache/Mycat-Server.git</developerConnection>
-		<url>scm:git:ssh://apachemycat@github.com/MyCATApache/Mycat-Server.git</url>
+		<connection>scm:git:ssh://michaelmao999@github.com/michaelmao999/Mycat-Server.git</connection>
+		<developerConnection>scm:git:ssh://michaelmao999@github.com/michaelmao999/Mycat-Server.git</developerConnection>
+		<url>scm:git:ssh://michaelmao999@github.com/michaelmao999/Mycat-Server.git</url>
 	</scm>
 	<repositories>
 		<repository>
@@ -34,7 +35,7 @@
 		<repository>
 			<id>releases</id>
 			<name>Internal Releases</name>
-			<url>http://nexus.mycat.io/content/repositories/releases</url>
+			<url>https://github.com/michaelmao999/Mycat-Server/releases</url>
 		</repository>
 		<snapshotRepository>
 			<id>snapshots</id>
@@ -241,6 +242,7 @@
 	</issueManagement>
 
 	<build>
+
 		<!-- finalName>${artifactId}-${version}-${buildNumber}</finalName -->
 		<resources>
 			<resource>
@@ -322,7 +324,7 @@
 								</replacement>
 								<replacement>
 									<token>@giturl@</token>
-									<value>https://github.com/MyCATApache/Mycat-Server.git</value>
+									<value>https://github.com/michaelmao999/Mycat-Server.git</value>
 								</replacement>
 								<replacement>
 									<token>@mycatsite@</token>
@@ -370,9 +372,8 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-source-plugin</artifactId>
-				<version>2.1.2</version>
+				<version>3.0.1</version>
 				<configuration>
-					<encoding>${app.encoding}</encoding>
 					<attach>true</attach>
 				</configuration>
 				<executions>
