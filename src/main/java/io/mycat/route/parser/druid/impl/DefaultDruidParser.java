@@ -201,9 +201,9 @@ public class DefaultDruidParser implements DruidParser {
 					//只处理between ,in和=3中操作符
 					if(operator.equals("between")) {
 						RangeValue rv = new RangeValue(values.get(0), values.get(1), RangeValue.EE);
-								routeCalculateUnit.addShardingExpr(tableName.toUpperCase(), columnName, rv);
+						routeCalculateUnit.addShardingExpr(tableName.toUpperCase(), columnName, rv);
 					} else if(operator.equals("=") || operator.toLowerCase().equals("in")){ //只处理=号和in操作符,其他忽略
-								routeCalculateUnit.addShardingExpr(tableName.toUpperCase(), columnName, values.toArray());
+						routeCalculateUnit.addShardingExpr(tableName.toUpperCase(), columnName, values.toArray());
 					//改进支持 > or < 符号的路由， 目前先支持PartitionByFileMap
 					} else if (operator.indexOf('>') >= 0) {  //处理> 和 >= 操作符
 						RangeValue rangeValue = null;
@@ -227,6 +227,10 @@ public class DefaultDruidParser implements DruidParser {
 						} else {
 							routeCalculateUnit.addShardingExpr(tableName.toUpperCase(), columnName,new RangeValue(values.toArray(), null, RangeValue.NOT));
 						}
+					} else if(operator.indexOf("between") > 0 && operator.indexOf("not") >= 0) { //处理 not between 操作符
+						//select * from travelrecord where (id NOT BETWEEN 3  and 4000000) and fee = 100
+						RangeValue rv = new RangeValue(values.get(0), values.get(1), RangeValue.NOT);
+						routeCalculateUnit.addShardingExpr(tableName.toUpperCase(), columnName, rv);
 					} else if(operator.indexOf(" in") > 0 && operator.indexOf("not") >= 0) { //处理 not in操作符
 
                     }

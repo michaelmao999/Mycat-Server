@@ -85,7 +85,13 @@ public class MycatSchemaStatVisitor extends MySqlSchemaStatVisitor {
         if (condition == null) {
             condition = new Condition();
             condition.setColumn(column);
-            condition.setOperator("between");
+            //支持 id NOT BETWEEN 3  and 4000000 语法
+			//select * from travelrecord where (id NOT BETWEEN 3  and 4000000) and fee = 100
+            if (x.isNot()) {
+				condition.setOperator("not between");
+			} else {
+				condition.setOperator("between");
+			}
             this.conditions.add(condition);
         }
 
