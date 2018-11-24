@@ -6,6 +6,7 @@ import com.alibaba.druid.sql.ast.statement.SQLSelectQuery;
 import com.alibaba.druid.sql.ast.statement.SQLSelectStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSelectQueryBlock;
 import com.alibaba.druid.sql.visitor.SchemaStatVisitor;
+import com.alibaba.druid.stat.TableStat;
 import com.alibaba.druid.stat.TableStat.Condition;
 import io.mycat.cache.LayerCachePool;
 import io.mycat.config.model.SchemaConfig;
@@ -126,7 +127,6 @@ public class DefaultDruidParser implements DruidParser {
 
 		List<List<Condition>> mergedConditionList;
 		if(visitor.hasOrCondition()) {//包含or语句
-			//TODO
 			//根据or拆分
 			mergedConditionList = visitor.splitConditions();
 		} else {//不包含OR语句
@@ -138,7 +138,11 @@ public class DefaultDruidParser implements DruidParser {
 			ctx.setSql(stmt.toString());
 			rrs.setStatement(ctx.getSql());
 		}
-		
+
+		//解析处理类似  x > 1 and x < 100的范围查询条件
+		handleRangeCondition(mergedConditionList);
+
+
 		if(visitor.getAliasMap() != null) {
 			for(Map.Entry<String, String> entry : visitor.getAliasMap().entrySet()) {
 				String key = entry.getKey();
@@ -172,7 +176,66 @@ public class DefaultDruidParser implements DruidParser {
 		}
 		ctx.setRouteCalculateUnits(this.buildRouteCalculateUnits(visitor, mergedConditionList));
 	}
-	
+
+	/**
+	 * 解析处理类似  x > 1 and x < 100的范围查询条件
+	 * @param mergedConditionList
+	 */
+	private static void handleRangeCondition(List<List<Condition>> mergedConditionList) {
+
+		int len1 = mergedConditionList.size();
+		Map<TableStat.Column, Condition> rangeMap = new HashMap<>();
+		for (int index1 = 0; index1 < len1; index1++) {
+			List<Condition> conditionList = mergedConditionList.get(index1);
+			int len2 = conditionList.size();
+			rangeMap.clear();
+			for (int index2 = 0; index2 < len2; index2++) {
+				Condition condition = conditionList.get(index2);
+				if (condition.getOperator().indexOf('>') >= 0 || condition.getOperator().indexOf('<') >=0) {
+					Condition anotherCondition = rangeMap.get(condition.getColumn());
+					if (anotherCondition == null) {
+						rangeMap.put(condition.getColumn(), condition);
+					} else {
+						//判断是否是一个range条件
+						handleRange(anotherCondition, condition);
+
+					}
+				}
+			}
+		}
+	}
+
+	private static void handleRange(Condition condition1, Condition condition2) {
+		if (condition1.getOperator().indexOf("between") >= 0) {
+			//merge it.
+		} else {
+			//it is first time.
+			Condition leftCondition = null;		//  x > 0
+			Condition rightCondition = null;	// x < 0
+			if (condition1.getOperator().indexOf('>') >= 0) {
+				leftCondition = condition1;
+			} else if (condition2.getOperator().indexOf('>') >= 0) {
+				leftCondition = condition2;
+			}
+			if (condition1.getOperator().indexOf('<') >= 0) {
+				rightCondition = condition1;
+			} else if (condition2.getOperator().indexOf('<') >= 0) {
+				rightCondition = condition2;
+			}
+			if (leftCondition != null && rightCondition != null) {
+				String leftValues =  StringUtil.toStringCondition(leftCondition.getValues());
+				String rightValues =  StringUtil.toStringCondition(rightCondition.getValues());
+				condition1.setOperator("between");
+				List<Object> values = condition1.getValues();
+				values.clear();
+				values.add(leftValues);
+				values.add(rightValues);
+				condition2.setOperator("ignore");
+			}
+
+		}
+	}
+
 	private List<RouteCalculateUnit> buildRouteCalculateUnits(SchemaStatVisitor visitor, List<List<Condition>> conditionList) {
 		List<RouteCalculateUnit> retList = new ArrayList<RouteCalculateUnit>();
 		//遍历condition ，找分片字段

@@ -32,6 +32,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.List;
 import java.util.Random;
 
 /**
@@ -372,7 +373,7 @@ public class StringUtil {
 		if (bytes == null || bytes.length == 0) {
 			return "";
 		}
-		StringBuffer buffer = new StringBuffer();
+		StringBuilder buffer = new StringBuilder();
 		for (byte byt : bytes) {
 			buffer.append((char) byt);
 		}
@@ -597,6 +598,53 @@ public class StringUtil {
 		}
 		return buf.toString();
 	}
+
+
+	public static String toStringCondition(Object data) {
+		if (data == null) {
+			return null;
+		}
+		if (data instanceof List) {
+			return toStringCondition((List)data);
+		} else if (data.getClass().isArray()) {
+			return toStringCondition((Object[]) data);
+		}else {
+			return data.toString();
+		}
+	}
+
+	private static String toStringCondition(Object[] dataArray) {
+		if (dataArray == null || dataArray.length == 0) {
+			return null;
+		}
+		boolean isFirst = true;
+		StringBuilder builder = new StringBuilder();
+		for(Object data : dataArray) {
+			if (isFirst) {
+				isFirst = false;
+			} else {
+				builder.append(',');
+			}
+			builder.append(data.toString());
+		}
+		return builder.toString();
+	}
+
+	private static String toStringCondition(List list) {
+		if (list == null || list.size() == 0) {
+			return null;
+		}
+		int len = list.size();
+		StringBuilder builder = new StringBuilder();
+		for (int index = 0; index < len; index++) {
+			if (index != 0) {
+				builder.append(',');
+			}
+			builder.append(list.get(index).toString());
+		}
+		return builder.toString();
+	}
+
 
 	public static void main(String[] args) {
 		System.out.println(getTableName("insert into ssd  (id) values (s)"));

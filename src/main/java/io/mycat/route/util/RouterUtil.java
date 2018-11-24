@@ -970,8 +970,8 @@ public class RouterUtil {
 				}
 			} else if (colPair.rangeValue != null) {
 				Integer[] nodeRange = algorithm.calculateRange(
-                            toString(colPair.rangeValue.beginValue),
-							toString(colPair.rangeValue.endValue), colPair.rangeValue.rangeType);
+                            StringUtil.toStringCondition(colPair.rangeValue.beginValue),
+							StringUtil.toStringCondition(colPair.rangeValue.endValue), colPair.rangeValue.rangeType);
 				if (nodeRange != null) {
 					/**
 					 * 不能确认 colPair的 nodeid是否会有其它影响
@@ -1229,7 +1229,8 @@ public class RouterUtil {
 					}
 					if(pair.rangeValue != null) {
 						Integer[] tableIndexs = algorithm
-                                    .calculateRange(toString(pair.rangeValue.beginValue), toString(pair.rangeValue.endValue), pair.rangeValue.rangeType);
+                                    .calculateRange(StringUtil.toStringCondition(pair.rangeValue.beginValue),
+											StringUtil.toStringCondition(pair.rangeValue.endValue), pair.rangeValue.rangeType);
        					for(Integer idx : tableIndexs) {
 							String subTable = tableConfig.getDistTables().get(idx);
 							if(subTable != null) {
@@ -1387,7 +1388,8 @@ public class RouterUtil {
 							}
 							if(pair.rangeValue != null) {
 								Integer[] nodeIndexs = algorithm
-                                            .calculateRange(toString(pair.rangeValue.beginValue), toString(pair.rangeValue.endValue), pair.rangeValue.rangeType);
+                                            .calculateRange(StringUtil.toStringCondition(pair.rangeValue.beginValue),
+													StringUtil.toStringCondition(pair.rangeValue.endValue), pair.rangeValue.rangeType);
 								ArrayList<String> dataNodes = tableConfig.getDataNodes();
 								String node;
 								for(Integer idx : nodeIndexs) {
@@ -1451,51 +1453,6 @@ public class RouterUtil {
 				}
 			}
 		}
-	}
-
-	private static String toString(Object data) {
-		if (data == null) {
-			return null;
-		}
-		if (data instanceof List) {
-			return toString((List)data);
-		} else if (data.getClass().isArray()) {
-			return toString((Object[]) data);
-		}else {
-			return data.toString();
-		}
-	}
-
-	private static String toString(Object[] dataArray) {
-		if (dataArray == null || dataArray.length == 0) {
-			return null;
-		}
-		boolean isFirst = true;
-		StringBuilder builder = new StringBuilder();
-		for(Object data : dataArray) {
-			if (isFirst) {
-				isFirst = false;
-			} else {
-				builder.append(',');
-			}
-			builder.append(data.toString());
-		}
-		return builder.toString();
-	}
-
-	private static String toString(List list) {
-		if (list == null || list.size() == 0) {
-			return null;
-		}
-		int len = list.size();
-		StringBuilder builder = new StringBuilder();
-		for (int index = 0; index < len; index++) {
-			if (index != 0) {
-				builder.append(',');
-			}
-			builder.append(list.get(index).toString());
-		}
-		return builder.toString();
 	}
 
 
